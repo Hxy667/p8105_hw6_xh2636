@@ -139,11 +139,8 @@ r2_appro %>%
 # 95% confidence interval for R2
 quantiles_r2 <- quantile(r2_appro$r.squared, c(0.025, 0.975), na.rm = TRUE)
 quantiles_r2
-
-mean_r2 <- mean(r2_appro$r.squared, na.rm = TRUE)
-sd_r2 <- sd(r2_appro$r.squared, na.rm = TRUE)
 ```
-As we can see from the result, The 95% confidence interval around the estimate of R2 is given by [0.8861, 0.9383]. The graph shows like a normal distribution, but left skewed also. The mean is `r mean_r2`and the standard deviation is `r sd_r2`.
+As we can see from the result, The 95% confidence interval around the estimate of R2 is given by [0.8861, 0.9383]. The graph shows like a normal distribution, but a appreance left skewed also.
 
 ```{r}
 # Log
@@ -159,7 +156,7 @@ log_appro <-
       names_from  = term
     , values_from = estimate
   ) %>%
- mutate(log_prod = log(b1 * b2))
+ transmute(log_prod = log(b1 * b2))
 
 # create a density plot of the distribution of our estimates
 log_appro %>%
@@ -175,8 +172,5 @@ log_appro %>%
 # 95% confidence interval for R2
 quantiles_log <- quantile(log_appro$log_prod, c(0.025, 0.975), na.rm = TRUE)
 quantiles_log
-
-mean_log <- mean(log_appro$log_prod, na.rm = TRUE)
-sd_log <- sd(log_appro$log_prod, na.rm = TRUE)
 ```
-As we can see from the result, The 95% confidence interval around the estimate of R2 is given by [2.049, 2.133]. The graph shows like a normal distribution, but a little left skewed. The mean is `r mean_log`and the standard deviation is `r sd_log`.
+As we can see from the result, The 95% confidence interval around the estimate of R2 is given by [2.049, 2.133]. The graph shows like a normal distribution, but a little left skewed. 
