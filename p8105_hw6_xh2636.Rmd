@@ -203,8 +203,33 @@ brithweight <- read.csv("./data/birthweight.csv") %>%
 ```
 
 ```{r}
-# Checcking for missing value
+# Checking for missing value
 sum(is.na(brithweight))
 ```
 
+```{r}
+# Find my model
+check_all_variable =  lm(bwt ~ babysex + fincome + 
+                        blength + gaweeks + momage + 
+                        parity + ppwt + wtgain + smoken, data = brithweight)
+
+check_all_variable %>% broom::tidy() %>% knitr::kable(digits = 3)
+
+# Make sure the own model
+my_model = lm(bwt ~ fincome + wtgain, data = brithweight)
+
+my_model %>% broom::tidy() %>% knitr::kable(digits = 3)
+
+# add_predictions and add_residuals
+brithweight %>% 
+  add_predictions(my_model) %>%
+  add_residuals(my_model) %>% 
+  ggplot(aes(x = pred, y = resid)) +
+  geom_point()
+```
+After we obtained the scientific data for all variables, I selected a few variables that could be used as templates for analysis. These values were then plotted. We can see that the deviation is not much. Although some points are still far away from the center line, they are still within the acceptable range.
+
+```{r}
+
+```
 
