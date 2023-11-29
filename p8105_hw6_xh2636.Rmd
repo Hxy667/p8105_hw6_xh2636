@@ -39,50 +39,62 @@ homicide_data <- homicide_data %>%
   filter(!(city_state %in% c('Dallas, TX', 
                              'Phoenix, AZ', 'Kansas City, MO', 'Tulsa, AL')))
 
-# Focus on the race only in White and Black
 homicide_data <- homicide_data %>%
-   mutate(victim_race = fct_relevel(victim_race, "White", "Black"),
-         victim_sex = fct_relevel(victim_sex, "Male", "Female"))
+  filter(victim_race %in% c("White", "Black"))
 
 view(homicide_data)
 ```
 
 ```{r,warning=FALSE}
 # use the glm function to fit a logistic regression with resolved vs unresolved
-homicide_data <- homicide_data %>%
-  mutate(victim_race = fct_relevel(victim_race, "White", "Black"),
-         victim_sex = fct_relevel(victim_sex, "Male", "Female"))
-
 baltimore <- filter(homicide_data, city == 'Baltimore' & state == 'MD')
 
-baltimore <- baltimore %>%
-  mutate(victim_raceWhite = as.integer(victim_race == "White"),
-         victim_raceBlack = as.integer(victim_race == "Black"),
-         victim_sexMale = as.integer(victim_sex == "Male"),
-         victim_sexFemale = as.integer(victim_sex == "Female"))
-
-model <- glm(resolved ~ victim_age + 
-               victim_sexMale + victim_sexFemale + victim_raceWhite + victim_raceBlack, 
-             data = baltimore, 
-             family = binomial())
+model <- glm(resolved ~ victim_age + victim_race + victim_sex,
+    data = baltimore,
+    family = binomial()) 
 
 # apply the broom::tidy to this object
 model %>% 
   broom::tidy() %>%
-  mutate(OR = exp(estimate)) %>%
-  select(term, log_OR = estimate, OR, p.value) %>%
+  mutate(
+    adjusted_OR = exp(estimate),
+    CI_lower = exp(estimate - 1.96 * std.error),
+    CI_upper = exp(estimate + 1.96 * std.error)
+  ) %>% 
+  select(term, adjusted_OR, CI_lower, CI_upper) %>% 
   knitr::kable(digits = 3)
-
-tidy_model <- broom::tidy(model)
-
-adjusted_odds_ratio <- tidy_model %>%
-  mutate(OR = exp(estimate)) %>%
-  filter(term %in% c('victim_raceWhite', 'victim_raceBlack', 'victim_sexMale', 'victim_sexFemale'))
-
-
-print(adjusted_odds_ratio)
 ```
 
+```{r}
+# run glm for each of the cities in your dataset, and extract the adjusted odds ratio
+city_model <- homicide_data %>% 
+  nest(data = -city_state) %>%
+  mutate(
+    fit = map(.x = data, ~ glm(resolved ~ victim_age + victim_sex + victim_race, data = ., family = binomial())),
+    output = map(fit, broom::tidy)
+  ) %>%
+  unnest(cols = output) %>%
+  filter(term == "victim_sexMale") %>%
+  mutate(adjusted_OR = exp(estimate),
+         CI_lower = exp(estimate - 1.96 * std.error),
+         CI_upper = exp(estimate + 1.96 * std.error)) %>%
+  select(city_state, adjusted_OR, CI_lower, CI_upper) 
+
+# Plot the graph
+city_model %>%
+  mutate(city_state = fct_reorder(city_state, adjusted_OR)) %>%
+  ggplot(aes(x = city_state, y = adjusted_OR, ymin = CI_lower, ymax = CI_upper)) +
+  geom_point() + 
+  geom_errorbar() +
+  coord_flip() +
+  theme(legend.position = "none") +
+  labs(
+    title = "Adjusted Odds Ratios for by City",
+    x = "City",
+    y = "Adjusted Odds Ratio",
+    caption = "Error bars represent 95% Confidence Intervals"
+  )
+```
 
 # Problem 2
 ```{r}
@@ -174,3 +186,25 @@ quantiles_log <- quantile(log_appro$log_prod, c(0.025, 0.975), na.rm = TRUE)
 quantiles_log
 ```
 As we can see from the result, The 95% confidence interval around the estimate of R2 is given by [2.049, 2.133]. The graph shows like a normal distribution, but a little left skewed. 
+
+# Problem 3
+```{r}
+# Load and clean the data for regression analysis convert numeric to factor
+brithweight <- read.csv("./data/birthweight.csv") %>%
+  janitor::clean_names() %>%
+  mutate(babysex = factor(babysex, levels = c(1, 2), 
+                     labels = c("Male", "Female")),
+    frace = factor(frace, levels = c(1, 2, 3, 4, 8, 9), 
+                   labels = c("White", "Black", "Asian", 
+                              "Puerto Rican", "Other", "Unknown")),
+    mrace = factor(mrace, levels = c(1, 2, 3, 4, 8), 
+                   labels = c("White", "Black", "Asian", "Puerto Rican", "Other")),
+    malform = factor(malform, levels = c(0, 1), labels = c("Absent", "Present")))
+```
+
+```{r}
+# Checcking for missing value
+sum(is.na(brithweight))
+```
+
+
