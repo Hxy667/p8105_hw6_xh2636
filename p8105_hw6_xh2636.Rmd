@@ -14,6 +14,7 @@ library(dplyr)
 library(readxl)
 library(broom)
 library(purrr)
+library(Metrics)
 ```
 
 # Problem 1
@@ -301,4 +302,60 @@ ggplot(combined_data, aes(x = Model, y = Residuals)) +
     y = "Residuals"
   )
 ```
+
+```{r, warning=FALSE}
+# Define models this time we add the crossv_mc function
+my_model <- lm(bwt ~ fincome + wtgain, data = brithweight)
+second_model <- lm(bwt ~ bhead + gaweeks, data = brithweight)
+third_model <- lm(bwt ~ bhead * blength * babysex, data = brithweight)
+
+# Cross-validation setup
+cv_split <- crossv_mc(brithweight, 100) %>% 
+  mutate(
+    train = map(train, as_tibble),
+    test  = map(test,  as_tibble)
+  )
+
+# Fit models to training data
+rmse_df <- cv_split %>%
+  mutate(
+    my    = map(.x = train, ~ predict(my_model, newdata = .)),
+    second = map(.x = train, ~ predict(second_model, newdata = .)),
+    third  = map(.x = train, ~ predict(third_model, newdata = .))
+  ) %>%
+
+  # Apply fitted models to testing data for validation
+  mutate(
+    rmse_my    = map2_dbl(.x = my,    .y = test, ~ rmse(.x, .y$bwt)),
+    rmse_second  = map2_dbl(.x = second,  .y = test, ~ rmse(.x, .y$bwt)),
+    rmse_third  = map2_dbl(.x = third,  .y = test, ~ rmse(.x, .y$bwt))
+  ) %>%
+  select(rmse_my, rmse_second, rmse_third) %>%
+  pivot_longer(
+    cols         = everything(),
+    names_to     = "model",
+    values_to    = "rmse",
+    names_prefix = "rmse_"
+  ) %>%
+
+# Factorize models to preserve ordering
+  mutate(model = fct_inorder(model))
+
+# Plotting
+rmse_df %>%
+  ggplot(aes(x = model, y = rmse, fill = model)) +
+  geom_violin(alpha = 0.5) +
+  theme(legend.position = "none") +
+  labs(
+    title = "Distribution of RMSE, by Model",
+    x     = "Model",
+    y     = "RMSE"
+  ) +
+  scale_x_discrete(labels = c(
+    "My Model",
+    "Second Model",
+    "Third Model"
+  ))
+```
+When these three models are arranged together, we can see that there is not much difference between our model and the other two.
 
